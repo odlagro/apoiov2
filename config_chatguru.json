@@ -1,0 +1,10 @@
+{
+  "api_endpoint": "https://app3.zap.guru/api/v1",
+  "chatguru_key": "N64RWGMFP98HRZEPUX3WA72F86G1U9UXF4DMSU0IUDDQ4ERNCKUOR201A3RWBRZM",
+  "chatguru_account_id": "5eb1a70a822d431767b96d80",
+  "chatguru_phone_id": "643ea3236481871e692f0983",
+  "chatguru_dialog_id": "64318160366d4a5562f9333e",
+  "msg_final_um": "Qual desse modelo lhe interessa?",
+  "msg_final_varios": "Qual desses modelos lhe interessa?",
+  "desconto_padrao": 10.0
+}

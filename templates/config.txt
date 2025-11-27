@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Configurações ChatGuru - APOIOV2</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="appbar">
+    <div class="logo">APOIOV2</div>
+    <nav>
+      <a href="/">Principal</a>
+      <a href="/config" class="active">Configurações ChatGuru</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <header>Parâmetros da API ChatGuru</header>
+      <p class="small">
+        Informe abaixo os dados da sua conta ChatGuru. Esses dados são usados para enviar
+        as mensagens do APOIOV2, executar o diálogo e definir a mensagem final.
+      </p>
+
+      <div id="chatguru_form" class="form-column">
+        <label>API endpoint
+          <input id="cfg_endpoint" type="text" autocomplete="off"
+                 placeholder="https://app3.zap.guru/api/v1">
+        </label>
+        <label>key
+          <input id="cfg_key" type="text" autocomplete="off">
+        </label>
+        <label>account_id
+          <input id="cfg_account" type="text" autocomplete="off">
+        </label>
+        <label>phone_id
+          <input id="cfg_phone" type="text" autocomplete="off">
+        </label>
+        <label>dialog_id
+          <input id="cfg_dialog" type="text" autocomplete="off">
+        </label>
+        <label>Mensagem final (1 modelo)
+          <input id="cfg_msg1" type="text" autocomplete="off"
+                 placeholder="Qual desse modelo lhe interessa?">
+        </label>
+        <label>Mensagem final (vários modelos)
+          <input id="cfg_msg_varios" type="text" autocomplete="off"
+                 placeholder="Qual desses modelos lhe interessa?">
+        </label>
+
+        <div class="cfg-actions">
+          <div class="cfg-actions-left">
+            <label>Número para teste (DDI+DDD+Número)
+              <input id="cfg_teste_numero" type="text" placeholder="5599999999999">
+            </label>
+          </div>
+          <div class="cfg-actions-right">
+            <button id="cfg_save" class="primary" type="button">Salvar parâmetros</button>
+            <button id="cfg_test" class="ghost" type="button">Testar conexão</button>
+          </div>
+        </div>
+        <div class="cfg-status">
+          <div id="cfg_status" class="small"></div>
+          <pre id="cfg_debug" class="debug-block"></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
