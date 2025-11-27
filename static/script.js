@@ -1,3 +1,4 @@
+
 async function json(url){
   const r = await fetch(url);
   if(!r.ok) throw new Error(await r.text());
@@ -165,6 +166,43 @@ function normalizeNumeroInput(){
   }
 }
 
+// -------------------- CARREGAR LABELS DOS APARELHOS NA TELA PRINCIPAL --------------------
+async function applyPhoneLabelsAndDiscount(){
+  const descInput = document.getElementById('desc');
+  const span1 = document.getElementById('label_phone_1');
+  const span2 = document.getElementById('label_phone_2');
+  const radio2 = document.querySelector('input[name="phone_slot"][value="2"]');
+
+  try{
+    const js = await json('/api/chatguru_config');
+    if(js.ok && js.data){
+      const cfg = js.data;
+      if(descInput && cfg.desconto_padrao !== undefined){
+        descInput.value = cfg.desconto_padrao;
+      }
+      if(span1){
+        const label1 = cfg.chatguru_phone_id_1_label || cfg.chatguru_phone_id_1 || cfg.chatguru_phone_id || '(aparelho 1)';
+        span1.textContent = label1;
+      }
+      if(span2){
+        const label2Base = cfg.chatguru_phone_id_2_label || cfg.chatguru_phone_id_2;
+        if(label2Base){
+          span2.textContent = label2Base;
+          if(radio2) radio2.disabled = false;
+        }else{
+          span2.textContent = '(não configurado)';
+          if(radio2){
+            radio2.disabled = true;
+            radio2.checked = false;
+          }
+        }
+      }
+    }
+  }catch(e){
+    // silencioso
+  }
+}
+
 // -------------------- ENVIO CHATGURU --------------------
 async function sendChatguru(){
   const statusEl = document.getElementById('sendStatus');
@@ -178,6 +216,13 @@ async function sendChatguru(){
     statusEl.textContent = 'Informe o número do WhatsApp.';
     return;
   }
+
+  const phoneSlotEl = document.querySelector('input[name="phone_slot"]:checked');
+  if(!phoneSlotEl){
+    statusEl.textContent = 'Selecione o aparelho pelo qual será enviada a mensagem.';
+    return;
+  }
+  const phone_slot = phoneSlotEl.value;
 
   const {items, frete, desc, uf} = getSelectedContext();
 
@@ -193,7 +238,8 @@ async function sendChatguru(){
 
   const payload = {
     numero,
-    mensagens
+    mensagens,
+    phone_slot
   };
 
   try{
@@ -231,14 +277,18 @@ async function loadChatguruConfig(){
   try{
     const js = await json('/api/chatguru_config');
     if(js.ok && js.data){
-      document.getElementById('cfg_endpoint').value = js.data.api_endpoint || '';
-      document.getElementById('cfg_key').value = js.data.chatguru_key || '';
-      document.getElementById('cfg_account').value = js.data.chatguru_account_id || '';
-      document.getElementById('cfg_phone').value = js.data.chatguru_phone_id || '';
-      document.getElementById('cfg_dialog').value = js.data.chatguru_dialog_id || '';
-      document.getElementById('cfg_msg1').value = js.data.msg_final_um || '';
-      document.getElementById('cfg_msg_varios').value = js.data.msg_final_varios || '';
-      document.getElementById('cfg_desc_padrao').value = js.data.desconto_padrao ?? '';
+      const cfg = js.data;
+      document.getElementById('cfg_endpoint').value = cfg.api_endpoint || '';
+      document.getElementById('cfg_key').value = cfg.chatguru_key || '';
+      document.getElementById('cfg_account').value = cfg.chatguru_account_id || '';
+      document.getElementById('cfg_phone1').value = cfg.chatguru_phone_id_1 || cfg.chatguru_phone_id || '';
+      document.getElementById('cfg_phone1_label').value = cfg.chatguru_phone_id_1_label || '';
+      document.getElementById('cfg_phone2').value = cfg.chatguru_phone_id_2 || '';
+      document.getElementById('cfg_phone2_label').value = cfg.chatguru_phone_id_2_label || '';
+      document.getElementById('cfg_dialog').value = cfg.chatguru_dialog_id || '';
+      document.getElementById('cfg_msg1').value = cfg.msg_final_um || '';
+      document.getElementById('cfg_msg_varios').value = cfg.msg_final_varios || '';
+      document.getElementById('cfg_desc_padrao').value = cfg.desconto_padrao ?? '';
       statusEl.textContent = 'Configuração carregada.';
     }else{
       statusEl.textContent = 'Falha ao carregar configuração.';
@@ -261,7 +311,10 @@ async function saveChatguruConfig(){
     api_endpoint: document.getElementById('cfg_endpoint').value || '',
     chatguru_key: document.getElementById('cfg_key').value || '',
     chatguru_account_id: document.getElementById('cfg_account').value || '',
-    chatguru_phone_id: document.getElementById('cfg_phone').value || '',
+    chatguru_phone_id_1: document.getElementById('cfg_phone1').value || '',
+    chatguru_phone_id_1_label: document.getElementById('cfg_phone1_label').value || '',
+    chatguru_phone_id_2: document.getElementById('cfg_phone2').value || '',
+    chatguru_phone_id_2_label: document.getElementById('cfg_phone2_label').value || '',
     chatguru_dialog_id: document.getElementById('cfg_dialog').value || '',
     msg_final_um: document.getElementById('cfg_msg1').value || '',
     msg_final_varios: document.getElementById('cfg_msg_varios').value || '',
@@ -323,27 +376,13 @@ async function testChatguruConnection(){
   }
 }
 
-// -------------------- USO DO DESCONTO PADRÃO NA TELA PRINCIPAL --------------------
-async function applyDefaultDiscount(){
-  const descInput = document.getElementById('desc');
-  if(!descInput) return;
-  try{
-    const js = await json('/api/chatguru_config');
-    if(js.ok && js.data && js.data.desconto_padrao !== undefined){
-      descInput.value = js.data.desconto_padrao;
-    }
-  }catch(e){
-    // silencioso
-  }
-}
-
 // -------------------- INIT --------------------
 window.addEventListener('load', () => {
   // Página principal
   if(document.getElementById('tbody')){
     loadUF();
     loadProdutos();
-    applyDefaultDiscount();
+    applyPhoneLabelsAndDiscount();
     const reloadBtn = document.getElementById('reload');
     if(reloadBtn) reloadBtn.onclick = () => {
       loadUF();
@@ -365,4 +404,22 @@ window.addEventListener('load', () => {
     if(saveBtn) saveBtn.onclick = saveChatguruConfig;
     if(testBtn) testBtn.onclick = testChatguruConnection;
   }
+});
+
+function updatePhoneSelection() {
+    const card1 = document.getElementById("card_phone_1");
+    const card2 = document.getElementById("card_phone_2");
+    const selected = document.querySelector('input[name="phone_slot"]:checked');
+
+    card1.classList.remove("selected");
+    card2.classList.remove("selected");
+
+    if (selected) {
+        if (selected.value === "1") card1.classList.add("selected");
+        if (selected.value === "2") card2.classList.add("selected");
+    }
+}
+
+document.querySelectorAll('input[name="phone_slot"]').forEach(el => {
+    el.addEventListener("change", updatePhoneSelection);
 });

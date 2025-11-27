@@ -1,3 +1,4 @@
+
 *{box-sizing:border-box}
 :root{
   --bg:#111418;
@@ -235,10 +236,86 @@ th{
   overflow:auto;
   white-space:pre-wrap;
 }
+.grid2cfg{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
 
 /* Envio ChatGuru */
 .grid-chatguru{
   display:flex;
   flex-direction:column;
   gap:10px;
+}
+.phone-select{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.phone-select label{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:13px;
+}
+
+.phone-select {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.phone-cards {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.phone-card {
+    border: 2px solid #555;
+    border-radius: 10px;
+    padding: 12px 18px;
+    min-width: 260px;         /* aumentei um pouco a largura */
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: 0.25s;
+    background: #0f0f0f;
+}
+
+.phone-card:hover {
+    border-color: #999;
+}
+
+.phone-card input {
+    margin-right: 12px;
+    transform: scale(1.3);
+    accent-color: #0a84ff;
+}
+
+.phone-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;       /* centraliza tudo */
+}
+
+.phone-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;      /* NÃO deixa quebrar "Aparelho 1" */
+}
+
+.phone-number {
+    font-size: 13px;
+    color: #ccc;
+    white-space: nowrap;      /* NÃO deixa quebrar o telefone */
+}
+
+.phone-card.selected {
+    border-color: #0a84ff !important;
+    background: rgba(10, 132, 255, 0.08);
 }

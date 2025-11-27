@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="pt-br">
 <head>
@@ -61,6 +62,30 @@
         <label>WhatsApp (apenas números, com DDI+DDD)
           <input id="numero" type="text" placeholder="+553399620430">
         </label>
+
+     <div class="phone-select">
+    <span class="small">Selecione o aparelho pelo qual será enviada a mensagem (obrigatório):</span>
+
+    <div class="phone-cards">
+        <label class="phone-card" id="card_phone_1">
+            <input type="radio" name="phone_slot" value="1">
+            <div class="phone-card-body">
+                <div class="phone-title">Nr. 1</div>
+                <div class="phone-number" id="label_phone_1">(aparelho 1)</div>
+            </div>
+        </label>
+
+        <label class="phone-card" id="card_phone_2">
+            <input type="radio" name="phone_slot" value="2">
+            <div class="phone-card-body">
+                <div class="phone-title">Nr. 2</div>
+                <div class="phone-number" id="label_phone_2">(aparelho 2)</div>
+            </div>
+        </label>
+    </div>
+</div>
+
+
         <div class="sendwrap">
           <button id="send" class="primary" type="button">Enviar pelo ChatGuru</button>
           <span id="sendStatus" class="small"></span>

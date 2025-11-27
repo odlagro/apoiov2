@@ -1,3 +1,4 @@
+
 from flask import Flask, render_template, jsonify, request
 import requests, csv, io, datetime, json, os, time
 
@@ -22,7 +23,13 @@ def default_chatguru_config():
         "api_endpoint": "https://app3.zap.guru/api/v1",
         "chatguru_key": "N64RWGMFP98HRZEPUX3WA72F86G1U9UXF4DMSU0IUDDQ4ERNCKUOR201A3RWBRZM",
         "chatguru_account_id": "5eb1a70a822d431767b96d80",
+        # compat: phone_id "antigo"
         "chatguru_phone_id": "643ea3236481871e692f0983",
+        # novos parâmetros: dois aparelhos
+        "chatguru_phone_id_1": "643ea3236481871e692f0983",
+        "chatguru_phone_id_1_label": "(33) 9943-1200",
+        "chatguru_phone_id_2": "",
+        "chatguru_phone_id_2_label": "",
         "chatguru_dialog_id": "64318160366d4a5562f9333e",
         # mensagens de encerramento
         "msg_final_um": "Qual desse modelo lhe interessa?",
@@ -43,12 +50,18 @@ def load_chatguru_config():
         data = {}
     cfg = default_chatguru_config()
     cfg.update(data or {})
+    # compat: se phone_id_1 estiver vazio, copia do antigo
+    if not cfg.get("chatguru_phone_id_1") and cfg.get("chatguru_phone_id"):
+        cfg["chatguru_phone_id_1"] = cfg["chatguru_phone_id"]
     return cfg
 
 
 def save_chatguru_config(data):
     cfg = default_chatguru_config()
     cfg.update(data or {})
+    # mantém compat: campo antigo sempre igual ao phone_id_1
+    if cfg.get("chatguru_phone_id_1"):
+        cfg["chatguru_phone_id"] = cfg["chatguru_phone_id_1"]
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(cfg, f, ensure_ascii=False, indent=2)
     return cfg
@@ -75,14 +88,21 @@ def to_float_brl(s):
         return 0.0
 
 
-def chatguru_post(extra_params):
-    """Envia POST para o ChatGuru já incluindo key, account_id e phone_id."""
+def chatguru_post(extra_params, phone_id=None):
+    """Envia POST para o ChatGuru já incluindo key, account_id e phone_id.
+
+    phone_id: se informado, usa esse. Caso contrário, usa o phone_id_1 ou o antigo.
+    """
     cfg = load_chatguru_config()
     endpoint = (cfg.get("api_endpoint") or "").strip() or "https://app3.zap.guru/api/v1"
+    final_phone = (phone_id
+                   or cfg.get("chatguru_phone_id_1")
+                   or cfg.get("chatguru_phone_id")
+                   or "").strip()
     base = {
-        "key": cfg.get("chatguru_key", "").strip(),
-        "account_id": cfg.get("chatguru_account_id", "").strip(),
-        "phone_id": cfg.get("chatguru_phone_id", "").strip(),
+        "key": (cfg.get("chatguru_key") or "").strip(),
+        "account_id": (cfg.get("chatguru_account_id") or "").strip(),
+        "phone_id": final_phone,
     }
     data = {**base, **(extra_params or {})}
 
@@ -182,19 +202,25 @@ def api_chatguru_config():
         "api_endpoint": (data.get("api_endpoint") or "").strip(),
         "chatguru_key": (data.get("chatguru_key") or "").strip(),
         "chatguru_account_id": (data.get("chatguru_account_id") or "").strip(),
-        "chatguru_phone_id": (data.get("chatguru_phone_id") or "").strip(),
+        # telefones
+        "chatguru_phone_id_1": (data.get("chatguru_phone_id_1") or "").strip(),
+        "chatguru_phone_id_1_label": (data.get("chatguru_phone_id_1_label") or "").strip(),
+        "chatguru_phone_id_2": (data.get("chatguru_phone_id_2") or "").strip(),
+        "chatguru_phone_id_2_label": (data.get("chatguru_phone_id_2_label") or "").strip(),
         "chatguru_dialog_id": (data.get("chatguru_dialog_id") or "").strip(),
         "msg_final_um": (data.get("msg_final_um") or "").strip(),
         "msg_final_varios": (data.get("msg_final_varios") or "").strip(),
         "desconto_padrao": float(data.get("desconto_padrao") or 0),
     }
-    cfg = save_chatguru_config(cfg)
-    return jsonify(ok=True, data=cfg)
+    # compat: campo antigo
+    if cfg.get("chatguru_phone_id_1"):
+        cfg["chatguru_phone_id"] = cfg["chatguru_phone_id_1"]
+    return jsonify(ok=True, data=save_chatguru_config(cfg))
 
 
 @app.route("/api/chatguru_test", methods=["POST"])
 def api_chatguru_test():
-    """Botão 'Testar conexão'."""
+    """Botão 'Testar conexão'. Usa phone_id_1 por padrão."""
     payload = request.get_json(silent=True) or {}
     numero_teste = (payload.get("numero_teste") or "").strip()
     if not numero_teste:
@@ -206,6 +232,7 @@ def api_chatguru_test():
 
     cfg = load_chatguru_config()
     dialog_id = (cfg.get("chatguru_dialog_id") or "").strip()
+    phone_id_1 = (cfg.get("chatguru_phone_id_1") or cfg.get("chatguru_phone_id") or "").strip()
 
     extra = {
         "action": "chat_add",
@@ -217,7 +244,7 @@ def api_chatguru_test():
         extra["dialog_id"] = dialog_id
 
     try:
-        status, js = chatguru_post(extra)
+        status, js = chatguru_post(extra, phone_id=phone_id_1)
     except Exception as e:
         return jsonify(ok=False, error=f"Erro de requisição: {e}"), 500
 
@@ -253,11 +280,14 @@ def api_enviar_chatguru():
     payload = request.get_json(silent=True) or {}
     numero = (payload.get("numero") or "").strip()
     mensagens = payload.get("mensagens") or []
+    phone_slot = (payload.get("phone_slot") or "").strip()  # "1" ou "2"
 
     if not numero:
         return jsonify(ok=False, error="Número do WhatsApp não informado."), 400
     if not mensagens:
         return jsonify(ok=False, error="Nenhum produto selecionado para envio."), 400
+    if phone_slot not in ("1", "2"):
+        return jsonify(ok=False, error="Selecione o aparelho pelo qual será enviada a mensagem (phone_id 1 ou 2)."), 400
 
     # Remove tudo que não for dígito, a API espera apenas números (DDI+DDD+número)
     numero = "".join(ch for ch in numero if ch.isdigit())
@@ -266,6 +296,16 @@ def api_enviar_chatguru():
     dialog_id = (cfg.get("chatguru_dialog_id") or "").strip()
     msg_final_um = (cfg.get("msg_final_um") or "").strip() or "Qual desse modelo lhe interessa?"
     msg_final_varios = (cfg.get("msg_final_varios") or "").strip() or "Qual desses modelos lhe interessa?"
+
+    if phone_slot == "1":
+        chosen_phone = (cfg.get("chatguru_phone_id_1") or cfg.get("chatguru_phone_id") or "").strip()
+        phone_label = cfg.get("chatguru_phone_id_1_label") or "Aparelho 1"
+    else:
+        chosen_phone = (cfg.get("chatguru_phone_id_2") or "").strip()
+        phone_label = cfg.get("chatguru_phone_id_2_label") or "Aparelho 2"
+
+    if not chosen_phone:
+        return jsonify(ok=False, error=f"O {phone_label} não está configurado nas Configurações ChatGuru."), 400
 
     qtd_produtos = len(mensagens)
 
@@ -287,7 +327,8 @@ def api_enviar_chatguru():
                         "chat_number": numero,
                         "file_url": img_url,
                         "caption": caption,
-                    }
+                    },
+                    phone_id=chosen_phone,
                 )
                 resultados.append(
                     {"tipo": "arquivo_com_caption", "status": status, "resposta": resp_js}
@@ -312,7 +353,8 @@ def api_enviar_chatguru():
                             "chat_number": numero,
                             "send_date": send_date,
                             "text": texto,
-                        }
+                        },
+                        phone_id=chosen_phone,
                     )
                     resultados.append(
                         {"tipo": "mensagem", "status": status, "resposta": resp_js}
@@ -333,7 +375,8 @@ def api_enviar_chatguru():
                     "action": "dialog_execute",
                     "dialog_id": dialog_id,
                     "chat_number": numero,
-                }
+                },
+                phone_id=chosen_phone,
             )
             resultados.append(
                 {"tipo": "dialogo", "status": status, "resposta": resp_js}
@@ -362,7 +405,8 @@ def api_enviar_chatguru():
                     "chat_number": numero,
                     "send_date": send_date,
                     "text": msg_final,
-                }
+                },
+                phone_id=chosen_phone,
             )
             resultados.append(
                 {"tipo": "mensagem_final", "status": status, "resposta": resp_js}
