@@ -111,6 +111,21 @@ function getSelectedContext(){
 
   return {items, frete, desc, uf};
 }
+function suggestVideoByItems(items){
+  let opt = '';
+  (items || []).forEach(p => {
+    const nome = (p.produto || '').toUpperCase();
+    if(nome === 'ORDENHADEIRA CARRELO'){
+      opt = 'carrelo';
+    } else if(nome === 'ORDENHADEIRA CARRELO GASOLINA'){
+      opt = 'carrelo_gasolina';
+    } else if(nome === 'ORDENHADEIRA 4G'){
+      opt = '4g';
+    }
+  });
+  return opt;
+}
+
 
 function calc(){
   const wrap = document.getElementById('result');
@@ -118,6 +133,12 @@ function calc(){
 
   const {items, frete, desc, uf} = getSelectedContext();
   wrap.innerHTML = '';
+
+  const videoSelect = document.getElementById('video_option');
+  if(videoSelect && !videoSelect.value){
+    const suggested = suggestVideoByItems(items);
+    if(suggested) videoSelect.value = suggested;
+  }
 
   if(!items.length){
     wrap.innerHTML = '<div class="small">Selecione pelo menos 1 produto.</div>';
@@ -226,6 +247,17 @@ async function sendChatguru(){
 
   const {items, frete, desc, uf} = getSelectedContext();
 
+  const videoSelect = document.getElementById('video_option');
+  let video_opcao = videoSelect ? videoSelect.value : '';
+
+  if(videoSelect && !video_opcao){
+    const suggested = suggestVideoByItems(items);
+    if(suggested){
+      videoSelect.value = suggested;
+      video_opcao = suggested;
+    }
+  }
+
   if(!items.length){
     statusEl.textContent = 'Selecione pelo menos 1 produto para enviar.';
     return;
@@ -239,7 +271,8 @@ async function sendChatguru(){
   const payload = {
     numero,
     mensagens,
-    phone_slot
+    phone_slot,
+    video_opcao
   };
 
   try{

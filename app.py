@@ -281,19 +281,31 @@ def api_enviar_chatguru():
     numero = (payload.get("numero") or "").strip()
     mensagens = payload.get("mensagens") or []
     phone_slot = (payload.get("phone_slot") or "").strip()  # "1" ou "2"
+    video_option = (payload.get("video_opcao") or "").strip().lower()
 
     if not numero:
         return jsonify(ok=False, error="Número do WhatsApp não informado."), 400
     if not mensagens:
         return jsonify(ok=False, error="Nenhum produto selecionado para envio."), 400
     if phone_slot not in ("1", "2"):
-        return jsonify(ok=False, error="Selecione o aparelho pelo qual será enviada a mensagem (phone_id 1 ou 2)."), 400
+        return jsonify(
+            ok=False,
+            error="Selecione o aparelho pelo qual será enviada a mensagem (phone_id 1 ou 2)."
+        ), 400
 
     # Remove tudo que não for dígito, a API espera apenas números (DDI+DDD+número)
     numero = "".join(ch for ch in numero if ch.isdigit())
 
     cfg = load_chatguru_config()
-    dialog_id = (cfg.get("chatguru_dialog_id") or "").strip()
+    config_dialog_id = (cfg.get("chatguru_dialog_id") or "").strip()
+
+    # Mapeia opção de VÍDEO -> dialog_id específico
+    dialog_map = {
+        "carrelo": "692993a8fc63990eb486061b",
+        "carrelo_gasolina": "692999b4a460361e0b558fbe",
+        "4g": "6929acbb9447f8c19a46e86a",
+    }
+    dialog_id = dialog_map.get(video_option, config_dialog_id)
     msg_final_um = (cfg.get("msg_final_um") or "").strip() or "Qual desse modelo lhe interessa?"
     msg_final_varios = (cfg.get("msg_final_varios") or "").strip() or "Qual desses modelos lhe interessa?"
 
@@ -310,7 +322,8 @@ def api_enviar_chatguru():
     qtd_produtos = len(mensagens)
 
     resultados = []
-    sucesso = False
+    mensagens_sucesso = False
+    dialog_sucesso = (not dialog_id)  # se não tem dialog_id, essa parte já "passa"
     primeira_descricao_erro = None
 
     try:
@@ -330,12 +343,10 @@ def api_enviar_chatguru():
                     },
                     phone_id=chosen_phone,
                 )
-                resultados.append(
-                    {"tipo": "arquivo_com_caption", "status": status, "resposta": resp_js}
-                )
+                resultados.append({"tipo": "arquivo_com_caption", "status": status, "resposta": resp_js})
                 if isinstance(resp_js, dict):
                     if resp_js.get("result") == "success":
-                        sucesso = True
+                        mensagens_sucesso = True
                     else:
                         desc = resp_js.get("description") or resp_js.get("error") or ""
                         if desc and not primeira_descricao_erro:
@@ -356,19 +367,17 @@ def api_enviar_chatguru():
                         },
                         phone_id=chosen_phone,
                     )
-                    resultados.append(
-                        {"tipo": "mensagem", "status": status, "resposta": resp_js}
-                    )
+                    resultados.append({"tipo": "mensagem", "status": status, "resposta": resp_js})
                     if isinstance(resp_js, dict):
                         if resp_js.get("result") == "success":
-                            sucesso = True
+                            mensagens_sucesso = True
                         else:
                             desc = resp_js.get("description") or resp_js.get("error") or ""
                             if desc and not primeira_descricao_erro:
                                 primeira_descricao_erro = desc
                     time.sleep(3)
 
-        # 2) Executa o DIÁLOGO configurado
+        # 2) Executa o DIÁLOGO configurado (se houver)
         if dialog_id:
             status, resp_js = chatguru_post(
                 {
@@ -378,16 +387,14 @@ def api_enviar_chatguru():
                 },
                 phone_id=chosen_phone,
             )
-            resultados.append(
-                {"tipo": "dialogo", "status": status, "resposta": resp_js}
-            )
+            resultados.append({"tipo": "dialogo", "status": status, "resposta": resp_js})
             if isinstance(resp_js, dict):
                 if resp_js.get("result") == "success":
-                    sucesso = True
+                    dialog_sucesso = True
                 else:
                     desc = resp_js.get("description") or resp_js.get("error") or ""
                     if desc and not primeira_descricao_erro:
-                        primeira_descricao_erro = desc
+                        primeira_descricao_erro = f"Falha ao executar diálogo: {desc}"
 
         # 3) Mensagem de encerramento (5s após TUDO)
         msg_final = ""
@@ -408,13 +415,9 @@ def api_enviar_chatguru():
                 },
                 phone_id=chosen_phone,
             )
-            resultados.append(
-                {"tipo": "mensagem_final", "status": status, "resposta": resp_js}
-            )
+            resultados.append({"tipo": "mensagem_final", "status": status, "resposta": resp_js})
             if isinstance(resp_js, dict):
-                if resp_js.get("result") == "success":
-                    sucesso = True
-                else:
+                if resp_js.get("result") != "success":
                     desc = resp_js.get("description") or resp_js.get("error") or ""
                     if desc and not primeira_descricao_erro:
                         primeira_descricao_erro = desc
@@ -422,11 +425,18 @@ def api_enviar_chatguru():
     except Exception as e:
         return jsonify(ok=False, error=f"Erro ao enviar via ChatGuru: {e}"), 500
 
-    if not sucesso:
-        msg_erro = primeira_descricao_erro or "Nenhuma das chamadas foi aceita pela API ChatGuru."
+    # Se nenhuma mensagem foi enviada com sucesso
+    if not mensagens_sucesso:
+        msg_erro = primeira_descricao_erro or "Nenhuma das mensagens foi aceita pela API ChatGuru."
+        return jsonify(ok=False, error=msg_erro, detalhes=resultados)
+
+    # Se há dialog_id configurado e o dialog_execute falhou
+    if dialog_id and not dialog_sucesso:
+        msg_erro = primeira_descricao_erro or "Falha ao executar diálogo no ChatGuru."
         return jsonify(ok=False, error=msg_erro, detalhes=resultados)
 
     return jsonify(ok=True, detalhes=resultados)
+
 
 
 if __name__ == "__main__":
