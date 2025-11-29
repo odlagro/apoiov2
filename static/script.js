@@ -366,6 +366,8 @@ async function loadChatguruConfig(){
       document.getElementById('cfg_msg1').value = cfg.msg_final_um || '';
       document.getElementById('cfg_msg_varios').value = cfg.msg_final_varios || '';
       document.getElementById('cfg_desc_padrao').value = cfg.desconto_padrao ?? '';
+      const intervaloEl = document.getElementById('cfg_intervalo_imagens');
+      if(intervaloEl){ intervaloEl.value = (cfg.intervalo_imagens ?? 3); }
       statusEl.textContent = 'Configuração carregada.';
     }else{
       statusEl.textContent = 'Falha ao carregar configuração.';
@@ -396,6 +398,7 @@ async function saveChatguruConfig(){
     msg_final_um: document.getElementById('cfg_msg1').value || '',
     msg_final_varios: document.getElementById('cfg_msg_varios').value || '',
     desconto_padrao: parseFloat(document.getElementById('cfg_desc_padrao').value || '0') || 0,
+    intervalo_imagens: parseFloat(document.getElementById('cfg_intervalo_imagens').value || '3') || 3,
   };
 
   try{
@@ -467,6 +470,15 @@ window.addEventListener('load', () => {
     };
     const calcBtn = document.getElementById('calc');
     if(calcBtn) calcBtn.onclick = calc;
+    const uncheckBtn = document.getElementById('uncheck_all');
+    if(uncheckBtn){
+      uncheckBtn.onclick = () => {
+        const tbody = document.getElementById('tbody');
+        if(!tbody) return;
+        const checks = tbody.querySelectorAll('input.pick[type="checkbox"]');
+        checks.forEach(ch => ch.checked = false);
+      };
+    }
     const btnSend = document.getElementById('send');
     if(btnSend) btnSend.onclick = sendChatguru;
     const numeroInput = document.getElementById('numero');

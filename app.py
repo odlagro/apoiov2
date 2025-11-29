@@ -32,10 +32,12 @@ def default_chatguru_config():
         "chatguru_phone_id_2_label": "",
         "chatguru_dialog_id": "64318160366d4a5562f9333e",
         # mensagens de encerramento
-        "msg_final_um": "Qual desse modelo lhe interessa?",
-        "msg_final_varios": "Qual desses modelos lhe interessa?",
+        "msg_final_um": "Você prefere o pagamento PARCELADO ou DESCONTO avista?.",
+        "msg_final_varios": "Você prefere o pagamento PARCELADO ou DESCONTO avista?.",
         # desconto padrão à vista (%)
         "desconto_padrao": 12.0,
+        # intervalo padrão entre envios de imagens (segundos)
+        "intervalo_imagens": 3.0,
     }
 
 
@@ -211,6 +213,7 @@ def api_chatguru_config():
         "msg_final_um": (data.get("msg_final_um") or "").strip(),
         "msg_final_varios": (data.get("msg_final_varios") or "").strip(),
         "desconto_padrao": float(data.get("desconto_padrao") or 0),
+        "intervalo_imagens": float(data.get("intervalo_imagens") or 3),
     }
     # compat: campo antigo
     if cfg.get("chatguru_phone_id_1"):
@@ -297,8 +300,13 @@ def api_enviar_chatguru():
     numero = "".join(ch for ch in numero if ch.isdigit())
 
     cfg = load_chatguru_config()
-    msg_final_um = (cfg.get("msg_final_um") or "").strip() or "Qual desse modelo lhe interessa?"
-    msg_final_varios = (cfg.get("msg_final_varios") or "").strip() or "Qual desses modelos lhe interessa?"
+    msg_final_um = (cfg.get("msg_final_um") or "").strip() or "Você prefere o pagamento PARCELADO ou DESCONTO avista?."
+    msg_final_varios = (cfg.get("msg_final_varios") or "").strip() or "Você prefere o pagamento PARCELADO ou DESCONTO avista?."
+
+    intervalo = float(cfg.get("intervalo_imagens") or 3.0)
+    if intervalo < 0:
+        intervalo = 0.0
+
 
     # Mapeia diálogos por vídeo
     dialog_map = {
@@ -320,12 +328,24 @@ def api_enviar_chatguru():
 
     # Define qual diálogo será executado
     config_dialog_id = (cfg.get("chatguru_dialog_id") or "").strip()
+
+    # O diálogo de configurações só deve ser executado quando a mensagem
+    # for enviada pelo aparelho identificado como "(33) 9943-1200".
+    dialog_id = ""
     if phone_slot == "2":
         # Aparelho 2: somente diálogo de vídeo, nunca o diálogo padrão
         dialog_id = video_dialog_id or ""
     else:
-        # Aparelho 1: se tiver vídeo usa o dele; senão, usa o diálogo das configurações
-        dialog_id = video_dialog_id or config_dialog_id
+        # Aparelho 1
+        if video_dialog_id:
+            # Se houver um vídeo selecionado, usa o diálogo específico dele
+            dialog_id = video_dialog_id
+        else:
+            # Sem vídeo: só executa o diálogo de configurações se o rótulo do aparelho
+            # contiver o número (33) 9943-1200
+            phone1_label = (cfg.get("chatguru_phone_id_1_label") or "").strip()
+            if "(33) 9943-1200" in phone1_label:
+                dialog_id = config_dialog_id
 
     qtd_produtos = len(mensagens)
 
@@ -360,8 +380,8 @@ def api_enviar_chatguru():
                         if desc and not primeira_descricao_erro:
                             primeira_descricao_erro = desc
 
-                # Aguarda 3 segundos antes do próximo produto
-                time.sleep(3)
+                # Aguarda o intervalo configurado antes do próximo produto
+                time.sleep(intervalo)
             else:
                 # fallback: sem imagem, envia apenas texto
                 if texto:
@@ -383,7 +403,7 @@ def api_enviar_chatguru():
                             desc = resp_js.get("description") or resp_js.get("error") or ""
                             if desc and not primeira_descricao_erro:
                                 primeira_descricao_erro = desc
-                    time.sleep(3)
+                    time.sleep(intervalo)
 
         # 2) Executa o DIÁLOGO configurado (se houver)
         if dialog_id:
