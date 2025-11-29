@@ -320,17 +320,64 @@ th{
     background: rgba(10, 132, 255, 0.08);
 }
 
-.video-select{
+/* Layout compacto do painel Envio pelo ChatGuru */
+.chatguru-toolbar{
+  display:flex;
+  flex-wrap:nowrap;
+  align-items:flex-start;
+  gap:16px;
+}
+.cg-field{
   display:flex;
   flex-direction:column;
-  gap:6px;
-  margin-top:8px;
+  gap:4px;
 }
-.video-select select{
-  background:#0f1216;
-  border:1px solid var(--line);
-  border-radius:8px;
-  color:var(--fg);
-  padding:8px 10px;
-  max-width:260px;
+.cg-field .lbl{
+  font-size:13px;
+  font-weight:600;
+}
+.cg-whats{
+  flex:1 1 260px;
+}
+.cg-uf{
+  flex:0 0 120px;
+}
+.cg-phones{
+  flex:0 0 auto;
+  min-width:260px;
+}
+.cg-video{
+  flex:0 0 190px;
+}
+.cg-field input,
+.cg-field select{
+  width:100%;
+}
+.phone-inline{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.phone-pill{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 10px;
+  border-radius:999px;
+  border:2px solid #444;
+  background:#111827;
+  cursor:pointer;
+  font-size:13px;
+}
+.phone-pill input{
+  margin:0;
+}
+.phone-pill span{
+  white-space:nowrap;
+}
+.actions-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:10px;
 }

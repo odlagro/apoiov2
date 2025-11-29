@@ -17,6 +17,74 @@ const parseBR = (s) => {
   return isNaN(v) ? 0 : v;
 };
 
+const DDD_TO_UF = {
+  "11":"SP","12":"SP","13":"SP","14":"SP","15":"SP","16":"SP","17":"SP","18":"SP","19":"SP",
+  "21":"RJ","22":"RJ","24":"RJ",
+  "27":"ES","28":"ES",
+  "31":"MG","32":"MG","33":"MG","34":"MG","35":"MG","37":"MG","38":"MG",
+  "41":"PR","42":"PR","43":"PR","44":"PR","45":"PR","46":"PR",
+  "47":"SC","48":"SC","49":"SC",
+  "51":"RS","53":"RS","54":"RS","55":"RS",
+  "61":"DF","62":"GO","64":"GO",
+  "65":"MT","66":"MT","67":"MS",
+  "68":"AC","69":"RO",
+  "71":"BA","73":"BA","74":"BA","75":"BA","77":"BA",
+  "79":"SE",
+  "81":"PE","87":"PE",
+  "82":"AL",
+  "83":"PB",
+  "84":"RN",
+  "85":"CE","88":"CE",
+  "86":"PI","89":"PI",
+  "91":"PA","93":"PA","94":"PA",
+  "92":"AM","97":"AM",
+  "95":"RR",
+  "96":"AP",
+  "98":"MA","99":"MA"
+};
+
+function extractDDDFromNumero(numero){
+  const digits = (numero || "").toString().replace(/\D/g, "");
+  if(!digits) return null;
+  if(digits.startsWith("55") && digits.length >= 4){
+    return digits.slice(2,4);
+  }
+  if(digits.length >= 2){
+    return digits.slice(0,2);
+  }
+  return null;
+}
+
+function autoSelectUFByNumero(){
+  const numeroInput = document.getElementById('numero');
+  const ufSel = document.getElementById('uf');
+  if(!numeroInput || !ufSel) return;
+
+  const raw = numeroInput.value || "";
+  const ddd = extractDDDFromNumero(raw);
+  if(!ddd) return;
+
+  const uf = DDD_TO_UF[ddd];
+  if(!uf) return;
+
+  if(window._ufTouchedManually) return;
+
+  if(ufSel.options.length <= 1){
+    window._pendingUF = uf;
+    return;
+  }
+
+  const options = Array.from(ufSel.options);
+  const found = options.find(o => o.value === uf);
+  if(found){
+    window._settingUFProgrammatically = true;
+    ufSel.value = uf;
+    if(typeof ufSel.onchange === 'function') ufSel.onchange();
+    window._settingUFProgrammatically = false;
+  }
+}
+
+
 let DATA = [];
 
 // -------------------- PRODUTOS / FRETE --------------------
@@ -111,21 +179,6 @@ function getSelectedContext(){
 
   return {items, frete, desc, uf};
 }
-function suggestVideoByItems(items){
-  let opt = '';
-  (items || []).forEach(p => {
-    const nome = (p.produto || '').toUpperCase();
-    if(nome === 'ORDENHADEIRA CARRELO'){
-      opt = 'carrelo';
-    } else if(nome === 'ORDENHADEIRA CARRELO GASOLINA'){
-      opt = 'carrelo_gasolina';
-    } else if(nome === 'ORDENHADEIRA 4G'){
-      opt = '4g';
-    }
-  });
-  return opt;
-}
-
 
 function calc(){
   const wrap = document.getElementById('result');
@@ -133,12 +186,6 @@ function calc(){
 
   const {items, frete, desc, uf} = getSelectedContext();
   wrap.innerHTML = '';
-
-  const videoSelect = document.getElementById('video_option');
-  if(videoSelect && !videoSelect.value){
-    const suggested = suggestVideoByItems(items);
-    if(suggested) videoSelect.value = suggested;
-  }
 
   if(!items.length){
     wrap.innerHTML = '<div class="small">Selecione pelo menos 1 produto.</div>';
@@ -172,12 +219,16 @@ function normalizeNumeroInput(){
   if(!inp) return;
   let v = inp.value;
   if(!v){
+    window._ufTouchedManually = false;
+    window._pendingUF = null;
     return;
   }
   const hasPlus = v.trim().startsWith('+');
   const digits = v.replace(/\D/g,'');
   if(!digits){
     inp.value = hasPlus ? '+' : '';
+    window._ufTouchedManually = false;
+    window._pendingUF = null;
     return;
   }
   if(hasPlus){
@@ -185,6 +236,7 @@ function normalizeNumeroInput(){
   }else{
     inp.value = digits;
   }
+  autoSelectUFByNumero();
 }
 
 // -------------------- CARREGAR LABELS DOS APARELHOS NA TELA PRINCIPAL --------------------
@@ -248,15 +300,7 @@ async function sendChatguru(){
   const {items, frete, desc, uf} = getSelectedContext();
 
   const videoSelect = document.getElementById('video_option');
-  let video_opcao = videoSelect ? videoSelect.value : '';
-
-  if(videoSelect && !video_opcao){
-    const suggested = suggestVideoByItems(items);
-    if(suggested){
-      videoSelect.value = suggested;
-      video_opcao = suggested;
-    }
-  }
+  const video_opcao = videoSelect ? (videoSelect.value || '').trim() : '';
 
   if(!items.length){
     statusEl.textContent = 'Selecione pelo menos 1 produto para enviar.';

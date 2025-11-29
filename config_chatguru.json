@@ -8,7 +8,7 @@
   "chatguru_phone_id_2": "5fc95597eb8ac1551155eb3b",
   "chatguru_phone_id_2_label": "(33) 9931-1449",
   "chatguru_dialog_id": "64318160366d4a5562f9333e",
-  "msg_final_um": "Qual desse modelo lhe interessa?",
-  "msg_final_varios": "Qual desses modelos lhe interessa?",
+  "msg_final_um": "",
+  "msg_final_varios": "",
   "desconto_padrao": 10.0
 }
